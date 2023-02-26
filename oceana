@@ -1,0 +1,81 @@
+cd .avalanchego
+rm -rf db/
+mkdir -p configs/chains/C
+ls
+nano configs/chains/C/config.json
+
+```````````````````````````````````
+{
+  "snowman-api-enabled": false,
+  "coreth-admin-api-enabled": false,
+  "eth-apis": [
+    "public-eth",
+    "public-eth-filter",
+    "net",
+    "web3",
+    "internal-public-eth",
+    "internal-public-blockchain",
+    "internal-public-transaction-pool"
+  ],
+  "rpc-gas-cap": 50000000,
+  "rpc-tx-fee-cap": 100,
+  "pruning-enabled": true,
+  "local-txs-enabled": false,
+  "api-max-duration": 0,
+  "api-max-blocks-per-request": 0,
+  "allow-unfinalized-queries": false,
+  "allow-unprotected-txs": false,
+  "remote-tx-gossip-only-enabled": false,
+  "log-level": "info"
+}
+````````````````````````````
+
+cd ..
+ls
+nano run-flare.sh
+
+``````````````````````````
+#!/bin/bash
+
+# Ensure you give script permission to execute with `chmod +x run-flare.sh`
+
+nohup $HOME/go-flare/avalanchego/build/avalanchego --network-id=flare \
+  --bootstrap-ips="$(curl -m 10 -sX POST --data '{ "jsonrpc":"2.0", "id":1, "method":"info.getNodeIP" }' -H 'content-type:application/json;' https://flare.flare.network/ext/info | jq -r ".result.ip")" \
+  --bootstrap-ids="$(curl -m 10 -sX POST --data '{ "jsonrpc":"2.0", "id":1, "method":"info.getNodeID" }' -H 'content-type:application/json;' https://flare.flare.network/ext/info | jq -r ".result.nodeID")" \
+  --http-host=0.0.0.0 > /dev/null 2>&1 &
+
+echo $! > pid.txt
+printf "Flare node launched | PID: $! \n"
+``````````````````````````
+ls
+chmod +x run-flare.sh
+ls
+
+sudo nano /etc/systemd/system/flare-node.service
+````````````````````````````````````
+# flare-service-template.service
+# This template requires the run-flare.sh script
+[Unit]
+Description=Flare Systemd Service
+StartLimitIntervalSec=0
+
+[Service]
+ExecStart=/root/run-flare.sh
+Restart=always
+RestartSec=1
+WorkingDirectory=/root
+Environment=GOPATH=/root/go
+Environment=PATH=/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+
+User=root
+Type=forking
+
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=FlareNode
+
+[Install]
+WantedBy=multi-user.target
+````````````````````````````````````````````
+sudo systemctl enable flare-node.service
+sudo systemctl start flare-node.service
